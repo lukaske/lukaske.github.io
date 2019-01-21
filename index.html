@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Simulated Arduino device</title>
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.js"></script>
+	<style type="text/css">
+		body {
+			background-image: url("https://9to5mac.com/wp-content/uploads/sites/6/2018/06/mojave-night.jpg?quality=82&strip=all");
+			background-size: cover;
+		}
+		.container {
+			text-align: center;
+			background-color: #e6e6e6;
+			width: 100%;
+			max-width: 1200px;
+			margin: 20px auto;
+			padding: 10px 15px;
+		}
+
+		.btns {
+			display: block;
+			margin: 10px auto;
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<form>
+			Identifier: <input type="text" id="dIdentifier" value="sim123">
+			IP: <input type="text" id="dIP" value="192.168.0.23">
+			Location Lat.:<input type="number" id="dLocLat" value="46.089130">
+			Location Long.:<input type="number" id="dLocLong" value="14.637830">
+		</form>
+		<div class="data" style="margin-top: 20px;">
+			Measuring: <input type="number" id="dMeasuring" value="16">
+			Location ID: <input type="number" id="dLocID">
+			Measure: <input type="number" id="dMeasure" disabled>
+		</div>
+		<div class="btns">
+			<button onclick="connectTS();" style="margin-top: 30px;">Connect</button>
+			<button onclick="disconnectFS();" style="margin-top: 30px;">Disconnect</button>
+			<button onclick="testData();" style="margin-top: 30px;">Send test data</button>
+		</div>
+	</div>
+</body>
+<script type="text/javascript">
+	var dIdentifier = document.getElementById("dIdentifier");
+	var dIP = document.getElementById("dIP");
+	var dLocLat = document.getElementById("dLocLat");
+	var dLocLong = document.getElementById("dLocLong");
+	var dMeasuring = document.getElementById("dMeasuring");
+	var dMeasure = document.getElementById("dMeasure");
+	var dLocID = document.getElementById("dLocID");
+
+	// dLocLat.value = getRandomNum(46,47);
+	// dLocLong.value = getRandomNum(14,15);
+
+	function getRandomNum(min, max) {
+	  return (Math.random() * (max - min + 1)) + min;
+	}
+
+	setInterval(function(){
+		dMeasure.value = Math.round(getRandomNum(44,58) * 100) / 100
+	}, 200)
+
+	var socket;
+
+	function connectTS() {
+		var socketUrl = "http://noisejs2018.appspot.com?client=dvc&deviceid=" + dIdentifier.value
+		socket = io.connect(socketUrl);
+
+		socket.on('connect', () => {
+			console.log("Connected to socket.")
+
+			socket.on('apiDeviceState', function(data) {
+				dLocID.value = data.locationID;
+				dMeasuring.value = data.measuring;
+			})
+
+			socket.on('wbpapiDeviceNewLocation', function(data) {
+				console.log('got location from webapp')
+				dLocID.value = data.newLocationId
+			})
+
+			socket.on('wbpapiDeviceRecState', function(data) {
+				console.log('got measuring id from api')
+				dMeasuring.value = data.measuring
+			})
+		})
+
+		socket.on('disconnect', () => {
+			console.log("Disconnected from socket.")
+		})
+	}
+
+	setInterval(function() {
+		var dataToSend = {
+			identifier: dIdentifier.value,
+			ip: dIP.value,
+			lat: parseFloat(dLocLat.value),
+			long: parseFloat(dLocLong.value),
+			locationID: dLocID.value,
+			noise: parseFloat(dMeasure.value),
+			measuring: dMeasuring.value === "" ? null : parseInt(dMeasuring.value)
+		};
+		// console.log(dataToSend)
+		socket.emit('dvcDeviceData', dataToSend);
+	},3000)
+    
+	setInterval(function(){
+		if (dMeasuring.value !== "") {
+			// send data to socket
+			var noiseData = {
+				measuring: dMeasuring.value,
+				noise: dMeasure.value
+			};
+			socket.emit('dvcNoiseData', noiseData);
+			console.log('Noise data sent.')
+		}
+	},10000)
+
+	function disconnectFS() {
+		socket.disconnect();
+		dLocID.value = "";
+	}
+
+	function testData() {
+		var dataArray = [];
+		var i;
+		var rndNoise;
+		var multi;
+		for (var h=0;h<24;h++) {
+			multi = Math.random() + 1;
+			var hour = '0' + String(h);
+			hour = hour.substring(hour.length,hour.length-2)
+			for (i=0; i<360; i++) {
+				var t = new Date('2019-01-12T' + hour + ':04:21Z');
+				t.setSeconds(t.getSeconds() + i*10);
+				rndNoise = Math.round(getRandomNum(37,42) * 100 * multi) / 100;
+
+				var month = '' + (t.getMonth() + 1),
+                day = '' + t.getDate(),
+				year = t.getFullYear(),
+				hours = '' + t.getHours(),
+				minutes = '' + t.getMinutes(),
+				seconds = '' + t.getSeconds();
+
+                if (month.length < 2) month = '0' + month;
+				if (day.length < 2) day = '0' + day;
+				if (hours.length < 2) hours = '0' + hours;
+				if (minutes.length < 2) minutes = '0' + minutes;
+				if (seconds.length < 2) seconds = '0' + seconds;
+
+				var newDateSt = [year, month, day].join('-') + ' ' + [hours, minutes, seconds].join(':');
+				
+				// dataArray.push([parseInt(dMeasuring.value), rndNoise, t.getFullYear() + '-' + t.getMonth() + '-' + t.getDate() + ' ' + t.getUTCHours() + ':' + t.getMinutes() + ':' + t.getSeconds()])
+				dataArray.push([parseInt(dMeasuring.value), rndNoise, newDateSt])
+			}
+			console.log(dataArray);
+			const xhr = new XMLHttpRequest();
+			xhr.open('POST', 'https://noisejs2018.appspot.com/api/data/device/testPost');
+			xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+			xhr.onreadystatechange = function() {
+				if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
+					console.log(this.responseText.message)
+				}
+			}
+
+			xhr.send(JSON.stringify({data: dataArray}));
+
+			dataArray = [];
+		}
+	}
+</script>
+</html>
