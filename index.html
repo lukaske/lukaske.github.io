@@ -3,6 +3,7 @@
 <head>
 	<title>Simulated Arduino device</title>
 	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.js"></script>
+	 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 	<style type="text/css">
 		body {
 			background-image: url("https://9to5mac.com/wp-content/uploads/sites/6/2018/06/mojave-night.jpg?quality=82&strip=all");
@@ -42,6 +43,25 @@
 			<button onclick="testData();" style="margin-top: 30px;">Send test data</button>
 		</div>
 	</div>
+	
+	
+	<iframe width="560" height="315" src="https://www.youtube.com/embed/VAI5GSyXMjA" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+		<iframe width="560" height="315" src="page.html" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+	
+	<script>
+	$(function() {  
+$.get( "page.html", function( data ) {
+  $( "#result" ).html( data );
+  alert( "Load was performed." );
+});
+});
+	
+	</script>
+	<div id="result"></div>
+	
+	
+	
 </body>
 <script type="text/javascript">
 	var dIdentifier = document.getElementById("dIdentifier");
